@@ -1,7 +1,9 @@
-from database import Database, Guild
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
+
+from database import Database
+from database import Guild
 
 
 class FirestoreDatabase(Database):

@@ -8,6 +8,7 @@ from typing import Optional
 class Guild:
     moderator_role: Optional[int] = None
     cases_channel: Optional[int] = None
+    duplication_webhook: Optional[int] = None
 
     @classmethod
     def from_dict(cls, dictionary: Optional[dict]):
@@ -19,6 +20,9 @@ class Guild:
                 cases_channel=int(dictionary["cases_channel"])
                 if dictionary.get("cases_channel")
                 else None,
+                duplication_webhook=int(dictionary["duplication_webhook"])
+                if dictionary.get("duplication_webhook")
+                else None,
             )
         return cls()
 
@@ -26,6 +30,9 @@ class Guild:
         return {
             "moderator_role": str(self.moderator_role) if self.moderator_role else None,
             "cases_channel": str(self.cases_channel) if self.cases_channel else None,
+            "duplication_webhook": str(self.duplication_webhook)
+            if self.duplication_webhook
+            else None,
         }
 
 
@@ -37,4 +44,3 @@ class Database(ABC):
     @abstractmethod
     def set_guild(self, guild_id: int, guild: Guild) -> None:
         pass
-

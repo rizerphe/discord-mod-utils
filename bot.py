@@ -26,13 +26,23 @@ class Config:
     database: Database
     token: str
 
-    def get_mod_cases(self, guild_id) -> Optional[int]:
+    def get_mod_cases(self, guild_id: int) -> Optional[int]:
         """Get the ID of the channel used for storing mod cases"""
         return self.database.get_guild(guild_id).cases_channel
 
-    def get_mod_role(self, guild_id) -> Optional[int]:
+    def get_mod_role(self, guild_id: int) -> Optional[int]:
         """Get the ID of the moderator role"""
         return self.database.get_guild(guild_id).moderator_role
+
+    def get_mod_hook(self, guild_id: int) -> Optional[int]:
+        """Get the ID of the moderation webhook"""
+        return self.database.get_guild(guild_id).duplication_webhook
+
+    def set_mod_hook(self, guild_id: int, mod_hook_id: Optional[int]) -> None:
+        """Set the ID of the moderation webhook"""
+        guild = self.database.get_guild(guild_id)
+        guild.duplication_webhook = mod_hook_id
+        self.database.set_guild(guild_id, guild)
 
 
 async def is_mod(
@@ -326,10 +336,11 @@ class ModerationManager:
         channel = thread.parent
         if channel is None:
             return
+        hook_id = self.config.get_mod_hook(channel.guild.id)
         webhooks = [
             webhook
             for webhook in await channel.guild.webhooks()
-            if webhook.channel_id == channel.id
+            if webhook.channel_id == channel.id and webhook.id == hook_id
         ]
         if webhooks:
             webhook = webhooks[0]
@@ -337,6 +348,7 @@ class ModerationManager:
             webhook = await channel.create_webhook(
                 name="Moderation messages duplicator"
             )
+            self.config.set_mod_hook(channel.guild.id, webhook.id)
         await webhook.send(
             content=message.content,
             username=member.display_name,
@@ -548,6 +560,16 @@ class ConfigurerCog(ManagedCog):
         guild_config.cases_channel = channel.id
         self.manager.config.database.set_guild(ctx.guild.id, guild_config)
         await ctx.respond(f"{channel.mention} is now a moderation cases channel")
+
+    @config.command(
+        description="Forget about the moderation hook"
+        + " (creates a new one when needed, doesn't delete the old one)"
+    )
+    @commands.has_permissions(administrator=True)
+    async def reset_webhook(self, ctx):
+        """Reset the moderation copy webhook"""
+        self.manager.config.set_mod_hook(ctx.guild.id, None)
+        await ctx.respond(f"Webhook was reset")
 
 
 class UtilsCog(ManagedCog):
