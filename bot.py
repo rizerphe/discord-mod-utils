@@ -10,17 +10,30 @@ import humanize
 from discord.ext import commands
 from dotenv import load_dotenv
 from typing import Callable
+from database import Database
 
 
 @dataclass
 class Config:
-    mod_cases_channel: int
-    mod_role: int
+    database: Database
     token: str
 
+    def get_mod_cases(self, guild_id):
+        return self.database.get_guild(guild_id).cases_channel
 
-async def is_mod(user, config: Config, respond: Callable):
-    if config.mod_role in [role.id for role in user.roles]:
+    def get_mod_role(self, guild_id):
+        return self.database.get_guild(guild_id).moderator_role
+
+
+async def is_mod(user: discord.Member, config: Config, respond: Callable):
+    role = config.get_mod_role(user.guild.id)
+    if role is None:
+        await respond(
+            "You didn't set up a moderator. "
+            + "Use `/config moderator` to choose one"
+        )
+        return False
+    if role in [role.id for role in user.roles]:
         return True
     await respond("This command is reserved for moderators")
     return False
@@ -258,14 +271,14 @@ class ModerationManager:
                 continue  #  don't wanna refetch a member
             author = await message.guild.fetch_member(message.author.id)
             analyzed.append(message.author.id)
-            if self.config.mod_role in [role.id for role in author.roles]:
+            if self.config.get_mod_role(message.guild.id) in [
+                role.id for role in author.roles
+            ]:
                 active_mods.append(message.author)
         return active_mods
 
-    async def create_thread(self, title: str, description: str):
-        cases_channel: discord.Channel = await self.bot.fetch_channel(
-            self.config.mod_cases_channel
-        )
+    async def create_thread(self, title: str, description: str, channel_id: int):
+        cases_channel: discord.Channel = await self.bot.fetch_channel(channel_id)
         message: discord.Message = await cases_channel.send(description)
         thread: discord.Thread = await message.create_thread(name=title)
         return thread
@@ -286,6 +299,7 @@ class ModerationManager:
 class ModThreadCreationModal(discord.ui.Modal):
     def __init__(self, *args, **kwargs) -> None:
         self.__message: discord.Message = kwargs.pop("message")
+        self.__thread_channel = kwargs.pop("thread_channel")
         self.__manager = kwargs.pop("manager")
         super().__init__(*args, **kwargs)
 
@@ -320,7 +334,9 @@ class ModThreadCreationModal(discord.ui.Modal):
         )
 
         thread = await self.__manager.create_thread(
-            title=self.__title, description=self.__description
+            title=self.__title,
+            description=self.__description,
+            channel_id=self.__thread_channel,
         )
 
         member = await interaction.guild.fetch_member(self.__message.author.id)
@@ -335,29 +351,68 @@ class ModThreadCreationModal(discord.ui.Modal):
         )
 
 
-class ModerationUtilsCog(commands.Cog):
+class ManagedCog(commands.Cog):
     def __init__(self, manager):
         self.manager = manager
 
+
+class ConfigurerCog(ManagedCog):
+    # TODO: figure out proper permissions
+    # if I understand correctly, pycord just doesn't yet
+    # have discord.commands.CommandPermission implemented properly
+    config = discord.SlashCommandGroup(
+        "config",
+        "Configure global guild settings",
+    )
+
+    @config.command(description="Choose a role for performing moderator actions.")
+    @commands.has_permissions(administrator=True)
+    async def moderator(self, ctx, role: discord.Role):
+        guild_config = self.manager.config.database.get_guild(ctx.guild.id)
+        guild_config.moderator_role = role.id
+        self.manager.config.database.set_guild(ctx.guild.id, guild_config)
+        await ctx.respond(f"{role.mention} is now a guild moderator")
+
+    @config.command(
+        description="Choose a channel to create moderation case threads in."
+    )
+    @commands.has_permissions(administrator=True)
+    async def cases(self, ctx, channel: discord.TextChannel):
+        guild_config = self.manager.config.database.get_guild(ctx.guild.id)
+        guild_config.cases_channel = channel.id
+        self.manager.config.database.set_guild(ctx.guild.id, guild_config)
+        await ctx.respond(f"{channel.mention} is now a moderation cases channel")
+
+
+class UtilsCog(ManagedCog):
     @commands.message_command(name="Start a moderation thread")
     async def start_mod_thread(self, ctx, message: discord.Message):
-        member = await ctx.guild.fetch_member(message.author.id)
+        member = await ctx.guild.fetch_member(ctx.user.id)
         if await is_mod(
             member,
             self.manager.config,
             lambda response: ctx.respond(response, ephemeral=True),
         ):
+            thread_channel = self.manager.config.get_mod_cases(ctx.guild.id)
+            if thread_channel is None:
+                await ctx.respond(
+                    "You didn't set up a moderation cases channel. "
+                    + "Use `/config cases` to choose one",
+                    ephemeral=True,
+                )
+                return
             await ctx.send_modal(
                 ModThreadCreationModal(
                     title="Create a new moderation thread",
                     message=message,
                     manager=self.manager,
+                    thread_channel=thread_channel,
                 )
             )
 
     @commands.message_command(name="Get message info")
     async def get_message_info(self, ctx, message: discord.Message):
-        member = await ctx.guild.fetch_member(message.author.id)
+        member = await ctx.guild.fetch_member(ctx.user.id)
         if await is_mod(
             member,
             self.manager.config,
@@ -370,17 +425,22 @@ class ModerationUtilsCog(commands.Cog):
 
     @commands.message_command(name="Get user info")
     async def get_user_info(self, ctx, message: discord.Message):
-        member = await ctx.guild.fetch_member(message.author.id)
+        member = await ctx.guild.fetch_member(ctx.user.id)
         if await is_mod(
             member,
             self.manager.config,
             lambda response: ctx.respond(response, ephemeral=True),
         ):
+            member = await ctx.guild.fetch_member(message.author.id)
             await ctx.respond(
                 embed=self.manager.form_user_info_embed(member, message.channel),
                 view=UserActionsView(member=member, config=self.manager.config),
                 ephemeral=True,
             )
+
+
+class ModerationCog(ConfigurerCog, UtilsCog):
+    pass
 
 
 class PromptWhenNoDefault(click.Option):
@@ -403,21 +463,15 @@ load_dotenv()
     type=str,
 )
 @click.option(
-    "--mod-cases-channel",
-    default=lambda: os.getenv("MOD_CASES_CHANNEL", None),
-    show_default="envvar 'MOD_CASES_CHANNEL'",
-    type=int,
+    "--firebase-creds",
+    default="credentials.json",
+    type=click.Path(exists=True),
 )
-@click.option(
-    "--mod-role",
-    default=lambda: os.getenv("MOD_ROLE", None),
-    show_default="envvar 'MOD_ROLE'",
-    type=int,
-)
-def main(token, mod_cases_channel, mod_role):
-    config = Config(mod_cases_channel=mod_cases_channel, mod_role=mod_role, token=token)
+def main(token, firebase_creds):
+    database = Database(firebase_creds)
+    config = Config(token=token, database=database)
     bot = discord.Bot()
-    bot.add_cog(ModerationUtilsCog(ModerationManager(bot, config)))
+    bot.add_cog(ModerationCog(ModerationManager(bot, config)))
     bot.run(token)
 
 
