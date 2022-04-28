@@ -16,7 +16,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 from database import Database
-from database import FirestoreDatabase
+from firebase_db import FirestoreDatabase
 
 
 @dataclass
