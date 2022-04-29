@@ -4,7 +4,7 @@ import click
 import discord
 from dotenv import load_dotenv
 
-from cog import ModerationCog
+from cogs.moderation import ModerationCog
 from config import Config
 from firebase_db import FirestoreDatabase
 from manager import ModerationManager
