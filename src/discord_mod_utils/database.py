@@ -13,7 +13,7 @@ class Guild:
     duplication_webhook: Optional[int] = None
 
     @classmethod
-    def from_dict(cls, dictionary: Optional[dict]):
+    def from_dict(cls, dictionary: Optional[dict[str, Optional[str]]]):
         """Create a config object from a dictionary representation"""
         if dictionary:
             return cls(

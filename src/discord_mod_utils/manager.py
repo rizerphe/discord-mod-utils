@@ -7,8 +7,8 @@ from typing import Union
 import discord
 import humanize
 
-from config import Config
-from views import UserActionsView
+from .config import Config
+from .views import UserActionsView
 
 
 class ModerationManager:

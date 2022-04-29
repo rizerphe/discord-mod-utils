@@ -1,7 +1,7 @@
 import discord
 
-from manager import ModerationManager
-from views import ModInviteViewContainer
+from .manager import ModerationManager
+from .views import ModInviteViewContainer
 
 
 class ModThreadCreationModal(discord.ui.Modal):

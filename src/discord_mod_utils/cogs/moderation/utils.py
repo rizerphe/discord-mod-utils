@@ -1,10 +1,10 @@
 import discord
 from discord.ext import commands
 
-from cogs.managed import ManagedCog
-from guards import is_mod
-from thread_modal import ModThreadCreationModal
-from views import UserActionsView
+from ...guards import is_mod
+from ...thread_modal import ModThreadCreationModal
+from ...views import UserActionsView
+from ..managed import ManagedCog
 
 
 class UtilsCog(ManagedCog):

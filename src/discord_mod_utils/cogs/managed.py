@@ -1,5 +1,6 @@
-from manager import ModerationManager
 from discord.ext import commands
+
+from ..manager import ModerationManager
 
 
 class ManagedCog(commands.Cog):

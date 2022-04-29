@@ -1,6 +1,7 @@
 import discord
-from cogs.managed import ManagedCog
 from discord.ext import commands
+
+from ..managed import ManagedCog
 
 
 class ConfigurerCog(ManagedCog):

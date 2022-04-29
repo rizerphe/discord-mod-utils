@@ -5,10 +5,10 @@ import click
 import discord
 from dotenv import load_dotenv
 
-from cogs.moderation import ModerationCog
-from config import Config
-from firebase_db import FirestoreDatabase
-from manager import ModerationManager
+from .cogs.moderation import ModerationCog
+from .config import Config
+from .firebase_db import FirestoreDatabase
+from .manager import ModerationManager
 
 
 class PromptWhenNoDefault(click.Option):
@@ -57,8 +57,8 @@ def main(token, firebase_creds, debug_guild):
     database = FirestoreDatabase(firebase_creds)
     config = Config(token=token, database=database)
     if debug_guild:
-        click.echo(f"You are using these guilds for debugging:")
-        click.echo(f"    " + ",".join(f"{x}" for x in debug_guild))
+        click.echo("You are using these guilds for debugging:")
+        click.echo("    " + ",".join(f"{x}" for x in debug_guild))
         click.echo("Don't do this in production...")
         bot = discord.Bot(debug_guilds=list(debug_guild))
     else:

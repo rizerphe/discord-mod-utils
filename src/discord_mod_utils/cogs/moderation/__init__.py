@@ -1,5 +1,5 @@
-from cogs.moderation.configure import ConfigurerCog
-from cogs.moderation.utils import UtilsCog
+from .configure import ConfigurerCog
+from .utils import UtilsCog
 
 
 class ModerationCog(ConfigurerCog, UtilsCog):

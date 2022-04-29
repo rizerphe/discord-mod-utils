@@ -3,7 +3,7 @@ from typing import Coroutine
 
 import discord
 
-from config import Config
+from .config import Config
 
 
 async def is_mod(

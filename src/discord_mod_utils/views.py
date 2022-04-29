@@ -2,8 +2,8 @@ from datetime import timedelta
 
 import discord
 
-from config import Config
-from guards import is_mod
+from .config import Config
+from .guards import is_mod
 
 
 class ModInviteViewContainer:

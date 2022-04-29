@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from database import Database
+from .database import Database
 
 
 @dataclass
