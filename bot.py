@@ -1,3 +1,4 @@
+import json
 import os
 
 import click
@@ -41,7 +42,13 @@ load_dotenv()
     default="credentials.json",
     type=click.Path(exists=True),
 )
-def main(token, firebase_creds):
+@click.option(
+    "--debug-guild",
+    default=lambda: json.loads(os.getenv("DEBUG_GUILDS", "[]")),
+    type=int,
+    multiple=True,
+)
+def main(token, firebase_creds, debug_guild):
     """Main function
 
     Connects to a firestore database and starts the bot
@@ -49,7 +56,13 @@ def main(token, firebase_creds):
     """
     database = FirestoreDatabase(firebase_creds)
     config = Config(token=token, database=database)
-    bot = discord.Bot()
+    if debug_guild:
+        click.echo(f"You are using these guilds for debugging:")
+        click.echo(f"    " + ",".join(f"{x}" for x in debug_guild))
+        click.echo("Don't do this in production...")
+        bot = discord.Bot(debug_guilds=list(debug_guild))
+    else:
+        bot = discord.Bot()
     bot.add_cog(ModerationCog(ModerationManager(bot, config)))
     bot.run(token)
 
