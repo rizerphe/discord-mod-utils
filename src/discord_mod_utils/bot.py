@@ -3,6 +3,7 @@ import os
 
 import click
 import discord
+from dotenv import find_dotenv
 from dotenv import load_dotenv
 
 from .cogs.moderation import ModerationCog
@@ -25,7 +26,7 @@ class PromptWhenNoDefault(click.Option):
         return default
 
 
-load_dotenv()
+load_dotenv(find_dotenv(usecwd=True))
 
 
 @click.command(help="A simple discord moderation utilities bot")
