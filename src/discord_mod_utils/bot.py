@@ -28,9 +28,11 @@ class PromptWhenNoDefault(click.Option):
 load_dotenv()
 
 
-@click.command()
+@click.command(help="A simple discord moderation utilities bot")
 @click.option(
     "--token",
+    "-t",
+    help="discord bot token",
     prompt=True,
     cls=PromptWhenNoDefault,
     default=lambda: os.getenv("TOKEN", None),
@@ -39,11 +41,15 @@ load_dotenv()
 )
 @click.option(
     "--firebase-creds",
+    "-c",
+    help="path to firebase servive account credentials",
     default="credentials.json",
     type=click.Path(exists=True),
 )
 @click.option(
     "--debug-guild",
+    "-d",
+    help="guilds to use for debugging",
     default=lambda: json.loads(os.getenv("DEBUG_GUILDS", "[]")),
     type=int,
     multiple=True,
